@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hjemmeserveren – film, lydbøker og musikk på Docker</title>
+<meta name="description" content="Plex-stack, Lydbok-stack og Musikk-stack: tre mediaservere som setter seg opp selv på Docker. Linux, macOS og Windows.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400;62..125,600;62..125,800;62..125,900&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Literata:opsz,wght@7..72,400;7..72,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9EAEC; --ink:#17181C; --muted:#5D6068; --line:#CDD0D6;
+  --sans:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  /* prosjektenes egne farger og skrifter */
+  --plex-bg:#18223A; --plex-fg:#EEF1F4; --plex-acc:#E8B04B; --plex-font:"Bricolage Grotesque",var(--sans);
+  --bok-bg:#1F4A40; --bok-fg:#E9EFEA; --bok-acc:#E3B448; --bok-font:"Literata",Georgia,serif;
+  --mus-bg:#2643D0; --mus-fg:#FFFFFF; --mus-acc:#F2B8C6; --mus-font:"Archivo",var(--sans);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 1.0625rem/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:inherit}
+:focus-visible{outline:3px solid currentColor;outline-offset:3px;border-radius:4px}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:clamp(1.25rem,4vw,2.5rem)}
+code{font-family:inherit;font-weight:600;background:#DCDEE2;padding:.05em .35em;border-radius:4px}
+
+.top{display:flex;justify-content:space-between;align-items:center;padding-block:1.4rem}
+.mark{font-weight:900;font-stretch:115%;text-decoration:none}
+.top nav{display:flex;gap:1.4rem}
+.top nav a{color:var(--muted);text-decoration:none}
+.top nav a:hover{color:var(--ink)}
+
+.hero{padding-block:clamp(2rem,6vw,4.5rem) clamp(2rem,5vw,3.5rem)}
+h1{font-weight:900;font-stretch:112%;font-size:clamp(2.4rem,6vw,4.6rem);line-height:1;letter-spacing:-.02em;margin:0 0 1.2rem;max-width:16ch}
+.lede{font-size:1.25rem;color:var(--muted);max-width:52ch;margin:0}
+
+/* de tre */
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem;padding-bottom:clamp(3rem,7vw,5rem)}
+.p{border-radius:14px;padding:1.6rem 1.5rem 1.5rem;display:flex;flex-direction:column;min-height:34rem;position:relative;overflow:hidden}
+.p h2{margin:0 0 .3rem;line-height:1.02}
+.p .what{margin:0 0 1.2rem;opacity:.85}
+.p ul{list-style:none;margin:0 0 1.4rem;padding:0}
+.p li{display:flex;justify-content:space-between;gap:1rem;padding:.45rem 0;border-bottom:1px solid rgba(255,255,255,.16);font-size:.98rem}
+.p li span:last-child{opacity:.75;font-variant-numeric:tabular-nums}
+.p .go{margin-top:auto;display:flex;flex-wrap:wrap;gap:.6rem 1.1rem;align-items:center}
+.dl{display:inline-block;text-decoration:none;font-weight:600;padding:.75rem 1.15rem;border-radius:8px}
+.p .go a:not(.dl){text-underline-offset:4px;opacity:.9}
+.p .go a:not(.dl):hover{opacity:1}
+.p .icon{position:absolute;pointer-events:none}
+
+.plex{background:var(--plex-bg);color:var(--plex-fg);font-family:var(--plex-font)}
+.plex h2{font-weight:800;font-size:2.2rem;letter-spacing:-.02em}
+.plex .dl{background:var(--plex-acc);color:var(--plex-bg)}
+.plex .icon{right:-1.4rem;top:1.2rem;width:7.5rem;height:5rem;border:6px solid var(--plex-acc);border-radius:10px;opacity:.9}
+.plex .icon::after{content:"";position:absolute;left:30%;right:30%;bottom:-1.2rem;height:6px;background:var(--plex-acc);border-radius:3px}
+
+.bok{background:var(--bok-bg);color:var(--bok-fg);font-family:var(--bok-font)}
+.bok h2{font-weight:800;font-size:2.15rem;letter-spacing:-.015em}
+.bok .dl{background:var(--bok-acc);color:var(--bok-bg)}
+.bok li{border-color:rgba(233,239,234,.18)}
+.bok .icon{right:1.4rem;top:0;width:14px;height:5.5rem;background:#8A3A5C;clip-path:polygon(0 0,100% 0,100% 100%,50% 84%,0 100%)}
+
+.mus{background:var(--mus-bg);color:var(--mus-fg);font-family:var(--mus-font)}
+.mus h2{font-weight:900;font-stretch:118%;font-size:2.1rem;letter-spacing:-.02em}
+.mus .dl{background:#fff;color:var(--mus-bg)}
+.mus .icon{right:-2.4rem;top:-2.4rem;width:6.8rem;height:6.8rem;border-radius:50%;
+  background:radial-gradient(circle,var(--mus-acc) 0 17%,#18181C 18%)}
+
+.p h2,.p .what{max-width:80%}
+
+/* seksjoner */
+section{padding-block:clamp(3rem,7vw,5rem);border-top:1px solid var(--line)}
+h2.s{font-weight:900;font-stretch:110%;font-size:clamp(1.7rem,3.2vw,2.4rem);letter-spacing:-.015em;line-height:1.08;margin:0 0 .8rem}
+.intro{color:var(--muted);max-width:60ch;margin:0 0 2rem;font-size:1.1rem}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:clamp(2rem,6vw,5rem);align-items:start}
+
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:.55rem .6rem .55rem 0;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:.95rem}
+td b{font-weight:600}
+.dot{display:inline-block;width:.7rem;height:.7rem;border-radius:50%;margin-right:.45rem;vertical-align:.05em}
+
+.steps{margin:0;padding:0;list-style:none;counter-reset:s;display:grid;gap:1.4rem}
+.steps li{counter-increment:s;display:grid;grid-template-columns:2.2rem 1fr;gap:.8rem}
+.steps li::before{content:counter(s);font-weight:900;font-stretch:120%;font-size:1.5rem;line-height:1.2}
+.steps b{display:block}
+
+footer{border-top:1px solid var(--line);padding-block:2rem 3rem;color:var(--muted);font-size:.95rem}
+footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1rem 2rem}
+footer p{margin:0;max-width:62ch}
+
+@media (max-width:980px){.trio{grid-template-columns:1fr}.p{min-height:0}.cols{grid-template-columns:1fr}}
+@media (max-width:520px){.hide-s{display:none}.p h2{font-size:1.9rem}}
+</style>
+</head>
+<body>
+
+<header class="wrap top">
+  <a class="mark" href="#">Hjemmeserveren</a>
+  <nav>
+    <a href="#sammen" class="hide-s">Alle tre sammen</a>
+    <a href="#start">Kom i gang</a>
+    <a class="gh" href="#">GitHub</a>
+  </nav>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <h1>Film, lydbøker og musikk. Hjemme, på din egen maskin.</h1>
+    <p class="lede">Tre små prosjekter som gjør en gammel PC eller Mac om til en mediaserver. Hver av dem stiller noen spørsmål, setter opp appene på Docker og kobler dem sammen. Ta det du trenger, eller alle tre.</p>
+  </div>
+
+  <div class="wrap trio">
+    <article class="p plex" data-repo="plex-stack">
+      <i class="icon" aria-hidden="true"></i>
+      <h2>Plex-stack</h2>
+      <p class="what">Filmer og serier på TV-en, mobilen og i nettleseren. Familien ønsker seg ting, resten skjer av seg selv.</p>
+      <ul>
+        <li><span>Plex</span><span>32400</span></li>
+        <li><span>Seerr, ønskelister</span><span>5055</span></li>
+        <li><span>Sonarr og Radarr</span><span>8989 · 7878</span></li>
+        <li><span>Undertekster, kvalitetsvakt</span><span>Bazarr</span></li>
+        <li><span>Dashboard</span><span>3000</span></li>
+      </ul>
+      <div class="go"><a class="dl" href="#">Last ned</a><a class="site" href="#">Les mer</a><a class="repo" href="#">Koden</a></div>
+    </article>
+
+    <article class="p bok" data-repo="lydbok-stack">
+      <i class="icon" aria-hidden="true"></i>
+      <h2>Lydbok-stack</h2>
+      <p class="what">Lydbøker og podkaster med appen Audiobookshelf. Husker hvor du var, og henter nye bøker fra forfatterne du følger.</p>
+      <ul>
+        <li><span>Audiobookshelf</span><span>13378</span></li>
+        <li><span>Bookshelf</span><span>8787</span></li>
+        <li><span>Podkaster</span><span>valgfritt</span></li>
+        <li><span>Dashboard</span><span>3100</span></li>
+      </ul>
+      <div class="go"><a class="dl" href="#">Last ned</a><a class="site" href="#">Les mer</a><a class="repo" href="#">Koden</a></div>
+    </article>
+
+    <article class="p mus" data-repo="musikk-stack">
+      <i class="icon" aria-hidden="true"></i>
+      <h2>Musikk-stack</h2>
+      <p class="what">Hele musikksamlingen i Navidrome, med apper for mobil og PC. Nye album hentes i kvaliteten du velger.</p>
+      <ul>
+        <li><span>Navidrome</span><span>4533</span></li>
+        <li><span>Lidarr</span><span>8686</span></li>
+        <li><span>SABnzbd</span><span>8085</span></li>
+        <li><span>Dashboard</span><span>3200</span></li>
+      </ul>
+      <div class="go"><a class="dl" href="#">Last ned</a><a class="site" href="#">Les mer</a><a class="repo" href="#">Koden</a></div>
+    </article>
+  </div>
+
+  <section id="sammen">
+    <div class="wrap cols">
+      <div>
+        <h2 class="s">Alle tre på samme maskin</h2>
+        <p class="intro">Portene er valgt så ingenting kolliderer. Start Plex-stack først. Når Lydbok-stack og Musikk-stack finner den, spør veiviserne om de skal bruke nedlasterne derfra.</p>
+        <p class="intro">Da kjører det én VPN, én qBittorrent, én Usenet-klient og én Prowlarr for alt sammen. Indekserne du legger til, brukes for film, serier, lydbøker og musikk, og alt havner på samme disk.</p>
+      </div>
+      <table>
+        <thead><tr><th>Prosjekt</th><th>Lytt eller se</th><th>Dashboard</th><th>Henter nytt</th></tr></thead>
+        <tbody>
+          <tr><td><span class="dot" style="background:var(--plex-bg)"></span><b>Plex-stack</b></td><td>32400</td><td>3000</td><td>8989, 7878</td></tr>
+          <tr><td><span class="dot" style="background:var(--bok-bg)"></span><b>Lydbok-stack</b></td><td>13378</td><td>3100</td><td>8787</td></tr>
+          <tr><td><span class="dot" style="background:var(--mus-bg)"></span><b>Musikk-stack</b></td><td>4533</td><td>3200</td><td>8686</td></tr>
+          <tr><td colspan="4" style="color:var(--muted);border:0;padding-top:.9rem">Felles nedlastere i Plex-stack: qBittorrent 8080, NZBGet 6789, Prowlarr 9696, kjøling 3010.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="start">
+    <div class="wrap cols">
+      <div>
+        <h2 class="s">Kom i gang</h2>
+        <p class="intro">Det samme for alle tre, på Linux, macOS og Windows.</p>
+      </div>
+      <ol class="steps">
+        <li><div><b>Installer Docker.</b>Docker Desktop på Windows, OrbStack eller Docker Desktop på Mac. På Linux tilbyr startskriptet å installere det for deg.</div></li>
+        <li><div><b>Last ned og pakk ut.</b>Knappen over gir pakken for systemet ditt.</div></li>
+        <li><div><b>Start.</b>Kjør <code>start.sh</code>, eller dobbeltklikk <code>Start.command</code> eller <code>Start.bat</code>. Veiviseren stiller noen spørsmål, og så settes alt opp.</div></li>
+        <li><div><b>Gjør det lille som gjenstår.</b>Oppsummeringen til slutt sier hva du må gjøre selv, som regel å legge til indeksere og lage brukere til familien.</div></li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Prosjektene er verktøy. Du er selv ansvarlig for hva du laster ned. Ikke tilknyttet Plex, Audiobookshelf, Navidrome eller appene som brukes.</p>
+    <p>MIT-lisens · <a class="gh" href="#">GitHub</a></p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // Eieren: data-owner, ellers fra adressen (brukernavn.github.io).
+  var owner = document.documentElement.getAttribute("data-owner");
+  if (!owner && /\.github\.io$/.test(location.hostname)) owner = location.hostname.split(".")[0];
+  var ua = navigator.userAgent;
+  var os = /Windows/i.test(ua) ? "windows" : /Mac OS X|Macintosh/i.test(ua) ? "macos"
+         : /Linux|X11/i.test(ua) && !/Android/i.test(ua) ? "linux" : null;
+  var names = { linux: "Linux", macos: "macOS", windows: "Windows" };
+  document.querySelectorAll(".gh").forEach(function (a) { if (owner) a.href = "https://github.com/" + owner; });
+  document.querySelectorAll(".p").forEach(function (p) {
+    var repo = p.dataset.repo, gh = owner ? "https://github.com/" + owner + "/" + repo : null;
+    var site = owner ? "https://" + owner + ".github.io/" + repo + "/" : "../" + repo + "/";
+    p.querySelector(".site").href = site;
+    if (gh) p.querySelector(".repo").href = gh;
+    var dl = p.querySelector(".dl");
+    if (os && gh) {
+      dl.href = gh + "/releases/latest/download/" + repo + "-" + os + ".zip";
+      dl.textContent = "Last ned for " + names[os];
+    } else {
+      dl.href = gh ? gh + "/releases/latest" : site;
+    }
+  });
+})();
+</script>
+</body>
+</html>
